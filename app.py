@@ -4,7 +4,6 @@ import streamlit as st
 from audio_recorder_streamlit import audio_recorder
 from docx import Document
 from groq import Groq
-from pydub import AudioSegment
 
 st.markdown(
     """
@@ -299,20 +298,8 @@ def get_groq_client():
     return Groq(api_key=st.secrets["GROQ_API_KEY"])
 
 
-def _compress_if_wav(audio_bytes, fmt):
-    if fmt != "wav":
-        return audio_bytes, f"audio.{fmt}"
-    seg = AudioSegment.from_file(io.BytesIO(audio_bytes), format="wav")
-    buf = io.BytesIO()
-    seg.export(buf, format="mp3", bitrate="64k")
-    return buf.getvalue(), "audio.mp3"
-
-
-def transcribe_audio(audio_data, fmt="wav", compress=False):
-    if compress:
-        audio_data, filename = _compress_if_wav(audio_data, fmt)
-    else:
-        filename = f"audio.{fmt}"
+def transcribe_audio(audio_data, fmt="wav"):
+    filename = f"audio.{fmt}"
     groq_client = get_groq_client()
     transcription = groq_client.audio.transcriptions.create(
         file=(filename, audio_data),
@@ -483,7 +470,6 @@ if not st.session_state.setup_complete:
                     st.session_state["_rec_key"] = rec_key
                 audio_data = audio_bytes
                 audio_fmt = "wav"
-                audio_compress = False
 
         elif st.session_state.get("recording_method") == "Upload Recording":
             _, up_col, _ = st.columns([0.5, 3, 0.5])
@@ -500,7 +486,6 @@ if not st.session_state.setup_complete:
                     st.session_state["_upload_key"] = file_key
                 audio_data = uploaded_file.read()
                 audio_fmt = uploaded_file.name.rsplit(".", 1)[-1].lower()
-                audio_compress = audio_fmt == "wav"
             else:
                 if st.session_state.get("_upload_key") is not None:
                     st.session_state.transcription = None
@@ -510,9 +495,7 @@ if not st.session_state.setup_complete:
             st.audio(audio_data, format="audio/wav")
             if st.session_state.transcription is None:
                 with st.spinner("Transcribing your audio..."):
-                    result = transcribe_audio(
-                        audio_data, fmt=audio_fmt, compress=audio_compress
-                    )
+                    result = transcribe_audio(audio_data, fmt=audio_fmt)
                     st.session_state.transcription = result["text"]
 
     st.markdown('<div style="margin-top:36px;"></div>', unsafe_allow_html=True)
