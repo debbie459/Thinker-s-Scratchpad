@@ -1,0 +1,5 @@
+streamlit
+groq
+audio-recorder-streamlit
+pydub
+python-docx
